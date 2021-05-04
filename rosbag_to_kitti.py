@@ -10,7 +10,7 @@ import cv2
 import os
 import data_handler as dh
 
-LOGGING = True
+LOGGING = False
 
 def slots(msg):
     """Return message attributes (slots) as list."""
@@ -42,8 +42,6 @@ def main(bag_path, out_path):
         with rosbag.Bag(bag_file, 'r') as bag:
             info = bag.get_type_and_topic_info()
 
-            i = 0
-
             # Get tf_buffer
             for topic, msg, t in bag:
                 # Use rosbag info to determine msg type as
@@ -65,12 +63,8 @@ def main(bag_path, out_path):
                         elif topic == '/tf_static':
                             tf_buffer.set_transform_static(tf, 'default_authority')
                             if (LOGGING): print('static %s -> %s set' % (tf.header.frame_id, tf.child_frame_id))
-                    i += 1
         with rosbag.Bag(bag_file, 'r') as bag:
             info = bag.get_type_and_topic_info()
-
-            i = 0
-            max_i = 500
 
             # Storing timestamp information
             image_stamps = []
@@ -112,7 +106,6 @@ def main(bag_path, out_path):
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         cv2.imwrite(image_path, img)
                         i_image += 1
-                i += 1
             # save artifact poses
             # name = out_path + '/kitti/tf_coordinates/artifacts/%02i.txt' % i_bag
             # dh.save_artifact_data(name, tf_buffer)
