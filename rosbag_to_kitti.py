@@ -43,7 +43,6 @@ def main(bag_path, out_path):
             info = bag.get_type_and_topic_info()
 
             i = 0
-            max_i = 100
 
             # Get tf_buffer
             for topic, msg, t in bag:
@@ -67,8 +66,6 @@ def main(bag_path, out_path):
                             tf_buffer.set_transform_static(tf, 'default_authority')
                             if (LOGGING): print('static %s -> %s set' % (tf.header.frame_id, tf.child_frame_id))
                     i += 1
-                    if i == max_i:
-                        break
         with rosbag.Bag(bag_file, 'r') as bag:
             info = bag.get_type_and_topic_info()
 
@@ -116,20 +113,18 @@ def main(bag_path, out_path):
                         cv2.imwrite(image_path, img)
                         i_image += 1
                 i += 1
-                if i == max_i:
-                    # save artifact poses
-                    # name = out_path + '/kitti/tf_coordinates/artifacts/%02i.txt' % i_bag
-                    # dh.save_artifact_data(name, tf_buffer)
+            # save artifact poses
+            # name = out_path + '/kitti/tf_coordinates/artifacts/%02i.txt' % i_bag
+            # dh.save_artifact_data(name, tf_buffer)
 
-                    # save artifact pose relative to laser sensor in time when laser/image was captured
-                    name = out_path + '/kitti/tf_coordinates/laser_to_artifacts/%02i.txt' % i_bag
-                    dh.save_artifact_data2(name, tf_buffer, parent_frame='X1/laser', stamps=points_stamps)
-                    print("image stamps: " + str(image_stamps))
-                    print("points stamps: " + str(points_stamps))
+            # save artifact pose relative to laser sensor in time when laser/image was captured
+            name = out_path + '/kitti/tf_coordinates/laser_to_artifacts/%02i.txt' % i_bag
+            dh.save_artifact_data2(name, tf_buffer, parent_frame='X1/laser', stamps=points_stamps)
+            print("image stamps: " + str(image_stamps))
+            print("points stamps: " + str(points_stamps))
 
-                    tf_buffer.clear()
-                    i_bag += 1
-                    break
+            tf_buffer.clear()
+            i_bag += 1
 
 
 if __name__ == '__main__':
