@@ -110,7 +110,7 @@ def main(bag_path, out_path):
                     # save artifact poses
                     name = out_path + '/kitti/tf_coordinates/artifacts/%02i.txt' % i_bag
                     dh.save_artifact_data(name, tf_buffer)
-                    # TODO: save robot poses in time
+                    # TODO: save transformation between artifacts and lidar sensor in times pointcloud and image data were captured
                     # print("bag file: " + bag_file)
                     # print("image secs: " + str(image_secs))
                     # print("image nsecs: " + str(image_nsecs))
@@ -119,8 +119,6 @@ def main(bag_path, out_path):
                     print(tf_buffer.lookup_transform_core('backpack_1', 'X1/laser', rospy.Time(0)))
                     # dh.save_robot_data(name, tf_buffer, child_frame=robot_name, parent_frame=robot_parent_name, )
                     # note: rospy.Time(secs=~, nsecs=~)
-                    # TODO: save sensor poses in time
-                    # TODO: create git repository
                     tf_buffer.clear()
                     i_bag += 1
                     break
