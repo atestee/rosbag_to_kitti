@@ -10,7 +10,7 @@ import cv2
 import os
 import data_handler as dh
 
-LOGGING = False
+LOGGING = True
 
 def slots(msg):
     """Return message attributes (slots) as list."""
@@ -31,6 +31,7 @@ def main(bag_path, out_path):
     i_cloud = 0
     i_image = 0
     i_bag = 0
+    robot_name = 'X1'
 
     # go through bag files in given directory one-by-one
     for bag_file in os.listdir(bag_path):
@@ -44,15 +45,7 @@ def main(bag_path, out_path):
             i = 0
             max_i = 100
 
-            # Storing timestamp information
-            image_secs = []
-            image_nsecs = []
-            points_secs = []
-            points_nsecs = []
-
-            robot_name = 'X1'
-            robot_parent_name = ''
-
+            # Get tf_buffer
             for topic, msg, t in bag:
                 # Use rosbag info to determine msg type as
                 # type(msg) gives a rosbag-specific helper type.
@@ -63,7 +56,7 @@ def main(bag_path, out_path):
                     msg = TFMessage(*slots(msg))
                     for tf in msg.transforms:
                         # Robot pose has to be stored as tf not tf_static
-                        if tf.child_frame_id == 'X1':
+                        if tf.child_frame_id == robot_name:
                             robot_parent_name = tf.header.frame_id
                             tf_buffer.set_transform(tf, 'default_authority')
                             if (LOGGING): print('%s -> %s set' % (tf.header.frame_id, tf.child_frame_id))
@@ -73,7 +66,23 @@ def main(bag_path, out_path):
                         elif topic == '/tf_static':
                             tf_buffer.set_transform_static(tf, 'default_authority')
                             if (LOGGING): print('static %s -> %s set' % (tf.header.frame_id, tf.child_frame_id))
-                elif dtype == 'sensor_msgs/PointCloud2':
+                    i += 1
+                    if i == max_i:
+                        break
+        with rosbag.Bag(bag_file, 'r') as bag:
+            info = bag.get_type_and_topic_info()
+
+            i = 0
+            max_i = 500
+
+            # Storing timestamp information
+            image_stamps = []
+            points_stamps = []
+
+            # Get Image and PointCloud2 data
+            for topic, msg, t in bag:
+                dtype = info[1][topic][0]
+                if dtype == 'sensor_msgs/PointCloud2':
                     if (LOGGING): print('got cloud at %s' % topic)
                     # Create proper ROS msg type for ros_numpy.
                     msg = PointCloud2(*slots(msg))
@@ -84,41 +93,40 @@ def main(bag_path, out_path):
                     # Add some default reflectance (assuming it is not provided, otherwise use it).
                     refl = np.zeros((1, cloud.shape[0], cloud.shape[1]), pts.dtype)
                     pts = np.concatenate((pts, refl))
-                    # Save timestamp
-                    points_secs.append(msg.header.stamp.secs)
-                    points_nsecs.append(msg.header.stamp.nsecs)
-                    cloud_path = out_path +'/kitti/object/%06i.bin' % i_cloud
-                    with open(cloud_path, 'wb') as file:
-                        pts.T.tofile(file)
-                    i_cloud += 1
+                    if (tf_buffer.can_transform_core(tf.header.frame_id, 'backpack_1', tf.header.stamp)):
+                        # Save timestamp
+                        points_stamps.append(msg.header.stamp)
+                        # Save lidar data
+                        cloud_path = out_path +'/kitti/object/%06i.bin' % i_cloud
+                        with open(cloud_path, 'wb') as file:
+                            pts.T.tofile(file)
+                        i_cloud += 1
                 elif dtype == 'sensor_msgs/Image':
                     if (LOGGING): print('got image at %s' % topic)
                     # Create proper ROS msg type for ros_numpy.
                     msg = Image(*slots(msg))
                     # Convert to structured numpy array.
                     img = numpify(msg)
-                    # Save timestamp
-                    image_secs = msg.header.stamp.secs
-                    image_nsecs = msg.header.stamp.nsecs
-                    image_path = out_path +'/kitti/image/%06i.png' % i_image
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                    cv2.imwrite(image_path, img)
-
-                    i_image += 1
+                    if (tf_buffer.can_transform_core(tf.header.frame_id, 'backpack_1', tf.header.stamp)):
+                        # Save timestamp
+                        image_stamps.append(msg.header.stamp)
+                        # Save image
+                        image_path = out_path +'/kitti/image/%06i.png' % i_image
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                        cv2.imwrite(image_path, img)
+                        i_image += 1
                 i += 1
                 if i == max_i:
                     # save artifact poses
-                    name = out_path + '/kitti/tf_coordinates/artifacts/%02i.txt' % i_bag
-                    dh.save_artifact_data(name, tf_buffer)
-                    # TODO: save transformation between artifacts and lidar sensor in times pointcloud and image data were captured
-                    # print("bag file: " + bag_file)
-                    # print("image secs: " + str(image_secs))
-                    # print("image nsecs: " + str(image_nsecs))
-                    # print("points secs: " + str(points_secs))
-                    # print("points nsecs: " + str(points_nsecs))
-                    print(tf_buffer.lookup_transform_core('backpack_1', 'X1/laser', rospy.Time(0)))
-                    # dh.save_robot_data(name, tf_buffer, child_frame=robot_name, parent_frame=robot_parent_name, )
-                    # note: rospy.Time(secs=~, nsecs=~)
+                    # name = out_path + '/kitti/tf_coordinates/artifacts/%02i.txt' % i_bag
+                    # dh.save_artifact_data(name, tf_buffer)
+
+                    # save artifact pose relative to laser sensor in time when laser/image was captured
+                    name = out_path + '/kitti/tf_coordinates/laser_to_artifacts/%02i.txt' % i_bag
+                    dh.save_artifact_data2(name, tf_buffer, parent_frame='X1/laser', stamps=points_stamps)
+                    print("image stamps: " + str(image_stamps))
+                    print("points stamps: " + str(points_stamps))
+
                     tf_buffer.clear()
                     i_bag += 1
                     break
