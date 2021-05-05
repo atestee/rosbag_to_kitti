@@ -8,6 +8,10 @@ from tf2_msgs.msg import TFMessage
 import tf2_ros
 import cv2
 import os
+
+from tf2_py import ExtrapolationException, LookupException
+
+import data_handler
 import data_handler as dh
 
 LOGGING = False
@@ -67,8 +71,8 @@ def main(bag_path, out_path):
             info = bag.get_type_and_topic_info()
 
             # Storing timestamp information
-            image_stamps = []
-            points_stamps = []
+            image_transforms = []
+            points_transforms = []
 
             # Get Image and PointCloud2 data
             for topic, msg, t in bag:
@@ -84,10 +88,13 @@ def main(bag_path, out_path):
                     # Add some default reflectance (assuming it is not provided, otherwise use it).
                     refl = np.zeros((1, cloud.shape[0], cloud.shape[1]), pts.dtype)
                     pts = np.concatenate((pts, refl))
-                    if (tf_buffer.can_transform_core(tf.header.frame_id, 'backpack_1', tf.header.stamp)):
-                        # Save timestamp
-                        points_stamps.append(msg.header.stamp)
+                    # Save transform
+                    transforms = data_handler.lookup_transforms_to_artifacts(msg, tf_buffer)
+                    if len(transforms) != 0:
+                        # Save transforms
+                        points_transforms.append(transforms)
                         # Save lidar data
+                        # print("saving lidar data")
                         cloud_path = out_path +'/kitti/object/%06i.bin' % i_cloud
                         with open(cloud_path, 'wb') as file:
                             pts.T.tofile(file)
@@ -98,24 +105,19 @@ def main(bag_path, out_path):
                     msg = Image(*slots(msg))
                     # Convert to structured numpy array.
                     img = numpify(msg)
-                    if (tf_buffer.can_transform_core(tf.header.frame_id, 'backpack_1', tf.header.stamp)):
-                        # Save timestamp
-                        image_stamps.append(msg.header.stamp)
+                    transforms = data_handler.lookup_transforms_to_artifacts(msg, tf_buffer)
+                    if len(transforms) != 0:
+                        # Save transforms
+                        image_transforms.append(transforms)
                         # Save image
+                        # print("saving image data")
                         image_path = out_path +'/kitti/image/%06i.png' % i_image
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         cv2.imwrite(image_path, img)
                         i_image += 1
-            # save artifact poses
-            # name = out_path + '/kitti/tf_coordinates/artifacts/%02i.txt' % i_bag
-            # dh.save_artifact_data(name, tf_buffer)
-
-            # save artifact pose relative to laser sensor in time when laser/image was captured
-            name = out_path + '/kitti/tf_coordinates/laser_to_artifacts/%02i.txt' % i_bag
-            dh.save_artifact_data2(name, tf_buffer, parent_frame='X1/laser', stamps=points_stamps)
-            print("image stamps: " + str(image_stamps))
-            print("points stamps: " + str(points_stamps))
-
+            # Save transforms into files
+            dh.save_transforms(points_transforms, out_path + '/kitti/image_transforms/%02i.txt' % i_bag)
+            dh.save_transforms(image_transforms, out_path + '/kitti/laser_transforms/%02i.txt' % i_bag)
             tf_buffer.clear()
             i_bag += 1
 
