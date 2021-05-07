@@ -9,14 +9,14 @@ def lookup_transforms_to_artifacts(msg, tf_buffer):
 
     for artifact in artifacts:
         for i in range(1, 5):
-            if tf_buffer.can_transform_core(msg.header.frame_id, artifact  + '_' + str(i), msg.header.stamp):
+            if tf_buffer.can_transform_core(artifact  + '_' + str(i), msg.header.frame_id, msg.header.stamp):
                 try:
                     transforms.append(tf_buffer.lookup_transform_core(artifact + '_' + str(i), msg.header.frame_id, msg.header.stamp))
                 except ExtrapolationException:
-                    print("Extrapolation exception between " + str(msg.header.frame_id) + " and " + artifact + '_' + str(i))
+                    # print("Extrapolation exception between " + str(msg.header.frame_id) + " and " + artifact + '_' + str(i))
                     pass
                 except LookupException:
-                    print("Lookup exception between " + str(msg.header.frame_id) + " and " + artifact + '_' + str(i))
+                    # print("Lookup exception between " + str(msg.header.frame_id) + " and " + artifact + '_' + str(i))
                     pass
 
     return transforms
