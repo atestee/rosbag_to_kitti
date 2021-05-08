@@ -83,7 +83,7 @@ def save_calib_file(name, calibration_matrices, p0, tf_buffer, stamp):
     r0_str = get_matrix_as_string(R0)
 
     velo_to_cam_transform = tf_buffer.lookup_transform_core(lidar_frame, source, rospy.Time(0))
-    Tr_velo_to_cam = numpify(velo_to_cam_transform.transform)
+    Tr_velo_to_cam = numpify(velo_to_cam_transform.transform)[:3, :]
     Tr_velo_to_cam_str = get_matrix_as_string(Tr_velo_to_cam)
 
     file.write('P0: ' + p0_str + '\n')
