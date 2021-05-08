@@ -11,10 +11,7 @@ import cv2
 import os
 import logging
 
-from tf2_py import ExtrapolationException, LookupException
-
-import data_handler
-import data_handler as dh
+import utils
 
 LOGGING = False
 
@@ -38,6 +35,13 @@ def main(bag_path, out_path):
     i_image = 0
     i_bag = 0
     robot_name = 'X1'
+    calibration_matrices = []
+    camera_frames = utils.get_camera_frames()
+    cam_info_0_saved = False
+    cam_info_1_saved = False
+    cam_info_2_saved = False
+    cam_info_3_saved = False
+    p0 = None
 
     # go through bag files in given directory one-by-one
     for bag_file in os.listdir(bag_path):
@@ -70,13 +74,25 @@ def main(bag_path, out_path):
                         elif topic == '/tf_static':
                             tf_buffer.set_transform_static(tf, 'default_authority')
                             # logging.info('static %s -> %s set' % (tf.header.frame_id, tf.child_frame_id))
+                elif dtype == 'sensor_msgs/CameraInfo':
+                    msg = CameraInfo(*slots(msg))
+                    if msg.header.frame_id == camera_frames[0] and not cam_info_0_saved:
+                        p0 = msg.P
+                        R0 = msg.R
+                        cam_info_0_saved = True
+                    elif (msg.header.frame_id == camera_frames[1]) and not cam_info_1_saved:
+                        K1 = msg.K
+                        cam_info_1_saved = True
+                    elif (msg.header.frame_id == camera_frames[2]) and not cam_info_2_saved:
+                        K2 = msg.K
+                        cam_info_2_saved = True
+                    elif (msg.header.frame_id == camera_frames[3]) and not cam_info_3_saved:
+                        K3 = msg.K
+                        cam_info_3_saved = True
+            calibration_matrices = [K1, K2, K3]
 
         with rosbag.Bag(bag_file, 'r') as bag:
             info = bag.get_type_and_topic_info()
-
-            # Storing timestamp information
-            image_transforms = []
-            points_transforms = []
 
             # Get Image and PointCloud2 data
             for topic, msg, t in bag:
@@ -93,11 +109,11 @@ def main(bag_path, out_path):
                     refl = np.zeros((1, cloud.shape[0], cloud.shape[1]), pts.dtype)
                     pts = np.concatenate((pts, refl))
                     # Save transform
-                    transforms = data_handler.lookup_transforms_to_artifacts(msg, tf_buffer)
+                    transforms = utils.lookup_transforms_to_artifacts(msg, tf_buffer)
                     if len(transforms) != 0:
                         # Save transforms
                         image_transforms_filename = os.path.join(out_path, 'kitti', 'object_transforms', '%06i.txt' % i_cloud   )
-                        dh.save_transforms(transforms, image_transforms_filename)
+                        utils.save_transforms(transforms, image_transforms_filename)
                         # Save pointcloud
                         cloud_filename = os.path.join(out_path, 'kitti', 'object', '%06i.bin' % i_cloud)
                         with open(cloud_filename, 'wb') as file:
@@ -109,24 +125,20 @@ def main(bag_path, out_path):
                     msg = Image(*slots(msg))
                     # Convert to structured numpy array.
                     img = numpify(msg)
-                    transforms = data_handler.lookup_transforms_to_artifacts(msg, tf_buffer)
+                    transforms = utils.lookup_transforms_to_artifacts(msg, tf_buffer)
                     if len(transforms) != 0:
                         # Save transforms
                         image_transforms_filename = os.path.join(out_path, 'kitti', 'image_transforms', '%06i.txt' % i_image)
-                        dh.save_transforms(transforms, image_transforms_filename)
+                        utils.save_transforms(transforms, image_transforms_filename)
+                        # Save calibration file
+                        calib_filename = os.path.join(out_path, 'kitti', 'calib', '%06i.txt' % i_image)
+                        utils.save_calib_file(calib_filename, calibration_matrices, p0, tf_buffer, msg.header.stamp)
                         # Save image
                         image_filename = os.path.join(out_path, 'kitti', 'image', '%06i.png' % i_image)
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         cv2.imwrite(image_filename, img)
                         i_image += 1
-                # elif dtype == 'sensor_msgs/CameraInfo':
-                #     logging.info("Got calib info at %s" % topic)
-                #     msg = CameraInfo(*slots(msg))
-                #     calib_info = numpify(msg)
 
-            # Save transforms into files
-            # dh.save_transforms(points_transforms, out_path + '/kitti/image_transforms/%02i.txt' % i_bag)
-            # dh.save_transforms(image_transforms, out_path + '/kitti/laser_transforms/%02i.txt' % i_bag)
             tf_buffer.clear()
             i_bag += 1
 
