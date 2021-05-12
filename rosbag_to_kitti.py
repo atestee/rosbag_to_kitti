@@ -112,8 +112,12 @@ def main(bag_path, out_path):
                     transforms = utils.lookup_transforms_to_artifacts(msg, tf_buffer)
                     if len(transforms) != 0:
                         # Save transforms
-                        image_transforms_filename = os.path.join(out_path, 'kitti', 'object_transforms', '%06i.txt' % i_cloud   )
+                        image_transforms_filename = os.path.join(out_path, 'kitti', 'object_transforms', '%06i.txt' % i_cloud)
                         utils.save_transforms(transforms, image_transforms_filename)
+                        # Save bounding boxes
+                        bboxs = utils.artifacts_in_pointcloud(pts, transforms)
+                        label_filename = os.path.join(out_path, 'kitti', 'label_2', '%06i.txt' % i_cloud)
+                        utils.save_bbox_data(bboxs, label_filename)
                         # Save pointcloud
                         cloud_filename = os.path.join(out_path, 'kitti', 'object', '%06i.bin' % i_cloud)
                         with open(cloud_filename, 'wb') as file:
@@ -123,6 +127,8 @@ def main(bag_path, out_path):
                     logging.info('Got image at %s' % topic)
                     # Create proper ROS msg type for ros_numpy.
                     msg = Image(*slots(msg))
+                    if (msg.header.frame_id != "X1/camera_0/camera_0_optical"):
+                        continue
                     # Convert to structured numpy array.
                     img = numpify(msg)
                     transforms = utils.lookup_transforms_to_artifacts(msg, tf_buffer)

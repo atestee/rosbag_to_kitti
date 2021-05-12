@@ -1,19 +1,22 @@
+import math
+
 import rospy
 from tf2_py import ExtrapolationException, LookupException
 import numpy as np
 from ros_numpy import numpify
 
 # Subt artifacts: https://www.subtchallenge.com/resources/SubT_Cave_Artifacts_Specification.pdf
+import dim
+
 artifacts = ['backpack', 'phone', 'rescue_randy', 'rope', 'helmet', 'extinguisher', 'drill', 'vent']
 
 def lookup_transforms_to_artifacts(msg, tf_buffer):
     transforms = []
-
     for artifact in artifacts:
         for i in range(1, 5):
-            if tf_buffer.can_transform_core(artifact  + '_' + str(i), msg.header.frame_id, msg.header.stamp):
+            if tf_buffer.can_transform_core(msg.header.frame_id, artifact  + '_' + str(i), msg.header.stamp):
                 try:
-                    transforms.append(tf_buffer.lookup_transform_core(artifact + '_' + str(i), msg.header.frame_id, msg.header.stamp))
+                    transforms.append(tf_buffer.lookup_transform_core(msg.header.frame_id, artifact + '_' + str(i), msg.header.stamp))
                 except ExtrapolationException:
                     # print("Extrapolation exception between " + str(msg.header.frame_id) + " and " + artifact + '_' + str(i))
                     pass
@@ -111,6 +114,52 @@ def get_matrix_as_string(mat):
 
     return string
 
+def get_alpha(tf):
+    # get rotation-z difference between transforms from quaternion
+    # https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+    q = numpify(tf.transform.rotation)
+    phi = np.arctan2(2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2]**2 + q[3]**2))
+    # print("phi: " + str(phi))
+    # get angle between source x-axis (eg. vector [1, 0, 0]) and translation vector (tf.transform.translation)
+    v1 = [1, 0, 0]
+    v2 = numpify(tf.transform.translation)
+    unit_v1 = v1 / np. linalg. norm(v1)
+    unit_v2 = v2 / np. linalg. norm(v2)
+    dot_product = np.dot(unit_v1, unit_v2)
+    phi2 = np.arccos(dot_product)
+    # print("phi2: " + str(phi2))
+    alpha = phi + phi2
+    return alpha
 
 
+def artifacts_in_pointcloud(pts, transforms):
+    # element of bboxes is [class, alpha, height, width, depth, x, y, z]
+    bboxes = []
+    for tf in transforms:
+        x = tf.transform.translation.x
+        y = tf.transform.translation.y
+        z = tf.transform.translation.z
 
+        max_x = np.max(pts[0])
+        min_x = np.min(pts[0])
+
+        max_y = np.max(pts[1])
+        min_y = np.min(pts[1])
+
+        max_z = np.max(pts[2])
+        min_z = np.min(pts[2])
+
+        if x <= max_x and y <= max_y and z <= max_z and x >= min_x and y >= min_y and z >= min_z:
+            print("artifact " + tf.child_frame_id + " in lidar scan!")
+            alpha = get_alpha(tf)
+            bbox = [dim.backpack_CLASS, alpha, dim.backpack_HEIGHT,  dim.backpack_WIDTH, dim.backpack_DEPTH, x, y, z]
+            bboxes.append(bbox)
+
+    return bboxes
+
+def save_bbox_data(bboxes, name):
+    file = open(name, 'w+')
+    for bbox in bboxes:
+        file.write(bbox[0] + ' 1 1 ' + str(bbox[1]) + ' 1 1 1 1 ' + str(bbox[2]) + ' ' + str(bbox[3]) + ' ' +
+        str(bbox[4]) + ' ' + str(bbox[5]) + ' ' + str(bbox[6]) + ' ' + str(bbox[7]) + ' 1\n')
+    file.close()
