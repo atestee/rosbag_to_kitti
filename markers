@@ -1,0 +1,64 @@
+#!/usr/bin/env python2
+
+import rospy
+from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray
+from geometry_msgs.msg import Point
+import numpy as np
+
+def get_bbox(filename):
+    f = open(filename, 'r')
+    contents = f.read()
+    for line in contents.split('/n'):
+	    bbox = line.split(' ')
+    return bbox
+
+def get_quarternion(yaw):
+    # https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Euler_angles_to_quaternion_conversion
+    yaw = float(yaw)
+    roll = 0
+    pitch = 0
+    cy = np.cos(yaw * 0.5);
+    sy = np.sin(yaw * 0.5);
+    cp = np.cos(pitch * 0.5);
+    sp = np.sin(pitch * 0.5);
+    cr = np.cos(roll * 0.5);
+    sr = np.sin(roll * 0.5);
+
+    q_w = cr * cp * cy + sr * sp * sy;
+    q_x = sr * cp * cy - cr * sp * sy;
+    q_y = cr * sp * cy + sr * cp * sy;
+    q_z = cr * cp * sy - sr * sp * cy;
+
+    return [q_x, q_y, q_z, q_w]
+
+if __name__ == '__main__':
+    marker_pub = rospy.Publisher("/marker", Marker, queue_size=10)
+    rospy.init_node("markers")
+    marker = Marker()
+    marker.header.frame_id = '/X1/laser/laser'
+    marker.header.stamp = rospy.Time()
+    marker.type = marker.CUBE
+    bbox = get_bbox('/home/atestee/subt_ws/src/subt/subt_ros/labels/000001.txt')
+    x = float(bbox[11])
+    y = float(bbox[12])
+    z = float(bbox[13])
+    marker.action = marker.ADD
+    marker.pose.position.x = x
+    marker.pose.position.y = y
+    marker.pose.position.z = z
+    q = get_quarternion(bbox[3])
+    marker.pose.orientation.x = q[0]
+    marker.pose.orientation.y = q[1]
+    marker.pose.orientation.z = q[2]
+    marker.pose.orientation.w = q[3]
+    marker.scale.x = float(bbox[9])
+    marker.scale.y = float(bbox[10])
+    marker.scale.z = float(bbox[8])
+    marker.color.r = 0.0
+    marker.color.g = 1.0
+    marker.color.b = 0.0
+    marker.color.a = 0.5
+    while True:
+        marker_pub.publish(marker)
+
