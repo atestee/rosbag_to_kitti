@@ -5,10 +5,12 @@ from tf2_py import ExtrapolationException, LookupException
 import numpy as np
 from ros_numpy import numpify
 
+from dim import DIM
+
 # Subt artifacts: https://www.subtchallenge.com/resources/SubT_Cave_Artifacts_Specification.pdf
 import dim
+artifacts = ['backpack', 'rescue_randy', 'helmet', 'extinguisher', 'drill']
 
-artifacts = ['backpack', 'phone', 'rescue_randy', 'rope', 'helmet', 'extinguisher', 'drill', 'vent']
 
 def lookup_transforms_to_artifacts(msg, tf_buffer):
     transforms = []
@@ -26,6 +28,7 @@ def lookup_transforms_to_artifacts(msg, tf_buffer):
 
     return transforms
 
+
 def save_transforms(transforms, name):
     file = open(name, 'w+')
     for tf in transforms:
@@ -33,6 +36,7 @@ def save_transforms(transforms, name):
             file.write(line + '\n')
         file.write('\n')
     file.close()
+
 
 def save_artifact_data(name, tf_buffer):
     transforms = []
@@ -48,6 +52,7 @@ def save_artifact_data(name, tf_buffer):
             file.write(line + '\n')
         file.write('\n')
     file.close()
+
 
 def save_calib_file(name, calibration_matrices, p0, tf_buffer, stamp):
     file = open(name, "w+")
@@ -98,12 +103,14 @@ def save_calib_file(name, calibration_matrices, p0, tf_buffer, stamp):
 
     file.close()
 
+
 def get_camera_frames():
     camera_0_frame = "X1/camera_0/camera_0_optical"
     camera_1_frame = "X1/camera_1/camera_1_optical"
     camera_2_frame = "X1/camera_2/camera_2_optical"
     camera_3_frame = "X1/camera_3/camera_3_optical"
     return [camera_0_frame, camera_1_frame, camera_2_frame, camera_3_frame]
+
 
 def get_matrix_as_string(mat):
     string = ''
@@ -114,21 +121,14 @@ def get_matrix_as_string(mat):
 
     return string
 
+
 def get_alpha(tf):
     # get rotation-z difference between transforms from quaternion
     # https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
     q = numpify(tf.transform.rotation)
-    phi = np.arctan2(2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2]**2 + q[3]**2))
-    # print("phi: " + str(phi))
-    # get angle between source x-axis (eg. vector [1, 0, 0]) and translation vector (tf.transform.translation)
-    v1 = [1, 0, 0]
-    v2 = numpify(tf.transform.translation)
-    unit_v1 = v1 / np. linalg. norm(v1)
-    unit_v2 = v2 / np. linalg. norm(v2)
-    dot_product = np.dot(unit_v1, unit_v2)
-    phi2 = np.arccos(dot_product)
-    # print("phi2: " + str(phi2))
-    alpha = phi + phi2
+    alpha = np.arctan2(2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2]**2 + q[3]**2))
+    if alpha > np.pi: alpha -= 2 * np.pi
+    elif alpha < -np.pi: alpha += 2 * np.pi
     return alpha
 
 
@@ -150,12 +150,19 @@ def artifacts_in_pointcloud(pts, transforms):
         min_z = np.min(pts[2])
 
         if x <= max_x and y <= max_y and z <= max_z and x >= min_x and y >= min_y and z >= min_z:
-            print("artifact " + tf.child_frame_id + " in lidar scan!")
+            # print("artifact " + tf.child_frame_id + " in lidar scan!")
             alpha = get_alpha(tf)
-            bbox = [dim.backpack_CLASS, alpha, dim.backpack_HEIGHT,  dim.backpack_WIDTH, dim.backpack_DEPTH, x, y, z]
-            bboxes.append(bbox)
+            artifact_class = tf.child_frame_id[:-2]
+            try:
+                dimensions = DIM.get(artifact_class)
+                bbox = (artifact_class, alpha, dimensions[0], dimensions[1], dimensions[2],
+                        x + dimensions[3], y + dimensions[4], z + dimensions[5])
+                bboxes.append(bbox)
+            except KeyError:
+                print("Artifact class unknown!")
 
     return bboxes
+
 
 def save_bbox_data(bboxes, name):
     file = open(name, 'w+')

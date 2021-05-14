@@ -31,6 +31,10 @@ def main(bag_path, out_path):
     # https://docs.ros.org/en/jade/api/tf2/html/classtf2_1_1BufferCore.html#a8f3900f749ab24dd824b14c0e453d1a6
     tf_buffer = tf2_ros.BufferCore(rospy.Duration.from_sec(3600.0))
 
+    clouds_per_bag_filename = 'clouds_per_bag.txt'
+    clouds_per_bag_file = open(clouds_per_bag_filename, 'w+')
+    clouds_per_bag_file.write('numer of bag, last scanned pointcloud in this bag\n')
+
     i_cloud = 0
     i_image = 0
     i_bag = 0
@@ -47,7 +51,6 @@ def main(bag_path, out_path):
     for bag_file in os.listdir(bag_path):
         bag_file = bag_path + bag_file
 
-        # if (LOGGING): print("processing file: " + bag_file)
         logging.info("processing file: " + bag_file)
 
         with rosbag.Bag(bag_file, 'r') as bag:
@@ -147,6 +150,10 @@ def main(bag_path, out_path):
 
             tf_buffer.clear()
             i_bag += 1
+            clouds_per_bag_file.write(bag_file + ", " + str(i_cloud) + '\n')
+
+    clouds_per_bag_file.close()
+
 
 
 if __name__ == '__main__':
