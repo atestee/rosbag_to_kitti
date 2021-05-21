@@ -10,10 +10,9 @@ import tf2_ros
 import cv2
 import os
 import logging
+import sys
 
 import utils
-
-LOGGING = False
 
 def slots(msg):
     """Return message attributes (slots) as list."""
@@ -39,7 +38,6 @@ def main(bag_path, out_path):
     i_image = 0
     i_bag = 0
     robot_name = 'X1'
-    calibration_matrices = []
     camera_frames = utils.get_camera_frames()
     cam_info_0_saved = False
     cam_info_1_saved = False
@@ -115,14 +113,15 @@ def main(bag_path, out_path):
                     transforms = utils.lookup_transforms_to_artifacts(msg, tf_buffer)
                     if len(transforms) != 0:
                         # Save transforms
-                        image_transforms_filename = os.path.join(out_path, 'kitti', 'object_transforms', '%06i.txt' % i_cloud)
-                        utils.save_transforms(transforms, image_transforms_filename)
                         # Save bounding boxes
                         bboxs = utils.artifacts_in_pointcloud(pts, transforms)
-                        label_filename = os.path.join(out_path, 'kitti', 'label_2', '%06i.txt' % i_cloud)
+                        label_filename = os.path.join(out_path, 'KITTI', 'label_2', '%06i.txt' % i_cloud)
                         utils.save_bbox_data(bboxs, label_filename)
+                        # Save calibration file
+                        calib_filename = os.path.join(out_path, 'KITTI', 'calib', '%06i.txt' % i_cloud)
+                        utils.save_calib_file(calib_filename, calibration_matrices, p0, tf_buffer, msg.header.stamp)
                         # Save pointcloud
-                        cloud_filename = os.path.join(out_path, 'kitti', 'object', '%06i.bin' % i_cloud)
+                        cloud_filename = os.path.join(out_path, 'KITTI', 'velodyne', '%06i.bin' % i_cloud)
                         with open(cloud_filename, 'wb') as file:
                             pts.T.tofile(file)
                         i_cloud += 1
@@ -136,14 +135,8 @@ def main(bag_path, out_path):
                     img = numpify(msg)
                     transforms = utils.lookup_transforms_to_artifacts(msg, tf_buffer)
                     if len(transforms) != 0:
-                        # Save transforms
-                        image_transforms_filename = os.path.join(out_path, 'kitti', 'image_transforms', '%06i.txt' % i_image)
-                        utils.save_transforms(transforms, image_transforms_filename)
-                        # Save calibration file
-                        calib_filename = os.path.join(out_path, 'kitti', 'calib', '%06i.txt' % i_image)
-                        utils.save_calib_file(calib_filename, calibration_matrices, p0, tf_buffer, msg.header.stamp)
                         # Save image
-                        image_filename = os.path.join(out_path, 'kitti', 'image', '%06i.png' % i_image)
+                        image_filename = os.path.join(out_path, 'KITTI', 'image_2', '%06i.png' % i_image)
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                         cv2.imwrite(image_filename, img)
                         i_image += 1
@@ -155,12 +148,22 @@ def main(bag_path, out_path):
     clouds_per_bag_file.close()
 
 
-
 if __name__ == '__main__':
     log_filename = 'debug.log'
     log_file = open(log_filename, 'w')
     logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s %(message)s')
 
-    main('/home/atestee/rosbag/', '/home/atestee/rosdata/')
+    # First argument: directory with rosbags
+    # Second argument: directory for outputted data
+    # must have format:
+    # KITTI
+    #  |- velodyne
+    #  |- label_2
+    #  |- image_2
+    #  |- calib
+
+    assert(len(sys.argv) == 3)
+    main(sys.argv[1], sys.argv[2])
 
     log_file.close()
+

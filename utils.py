@@ -1,14 +1,10 @@
-import math
-
 import rospy
 from tf2_py import ExtrapolationException, LookupException
 import numpy as np
 from ros_numpy import numpify
-
 from dim import DIM
 
 # Subt artifacts: https://www.subtchallenge.com/resources/SubT_Cave_Artifacts_Specification.pdf
-import dim
 artifacts = ['backpack', 'rescue_randy', 'helmet', 'extinguisher', 'drill']
 
 

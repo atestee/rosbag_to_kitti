@@ -1,5 +1,15 @@
 #!/usr/bin/env python2
 
+# BOUNDING BOX VISUALIZATION NODE
+# usage:
+# 1) put node in directory: subt_ws/src/subt/subt_ros/src
+# 2) put label file into directory subt_ws/src/subt/subt_ros/labels and name it label.txt
+# 3) compile Catkin workspace: cd ~/subt_ws/ & catkin_make -DCMAKE_BUILD_TYPE=Release install
+# 4) run Subt simulator: source ~/subt_ws/install/setup.bash & ign launch -v 4 competition.ign worldName:=tunnel_circuit_practice_01 circuit:=tunnel robotName1:=X1 robotConfig1:=X1_SENSOR_CONFIG_1
+# 5) run node: rosrun subt_ros markers
+# 6) run RVIZ: rosrun rviz rviz, and make sure the fixed frame is 'X1/laser/laser'
+
+
 import rospy
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
@@ -22,17 +32,17 @@ def get_quarternion(yaw):
     yaw = float(yaw)
     roll = 0
     pitch = 0
-    cy = np.cos(yaw * 0.5);
-    sy = np.sin(yaw * 0.5);
-    cp = np.cos(pitch * 0.5);
-    sp = np.sin(pitch * 0.5);
-    cr = np.cos(roll * 0.5);
-    sr = np.sin(roll * 0.5);
+    cy = np.cos(yaw * 0.5)
+    sy = np.sin(yaw * 0.5)
+    cp = np.cos(pitch * 0.5)
+    sp = np.sin(pitch * 0.5)
+    cr = np.cos(roll * 0.5)
+    sr = np.sin(roll * 0.5)
 
-    q_w = cr * cp * cy + sr * sp * sy;
-    q_x = sr * cp * cy - cr * sp * sy;
-    q_y = cr * sp * cy + sr * cp * sy;
-    q_z = cr * cp * sy - sr * sp * cy;
+    q_w = cr * cp * cy + sr * sp * sy
+    q_x = sr * cp * cy - cr * sp * sy
+    q_y = cr * sp * cy + sr * cp * sy
+    q_z = cr * cp * sy - sr * sp * cy
 
     return [q_x, q_y, q_z, q_w]
 
@@ -41,7 +51,7 @@ if __name__ == '__main__':
     marker_pub = rospy.Publisher("/bounding_boxes", MarkerArray, queue_size=10)
     rospy.init_node("bboxes")
     marker_array = MarkerArray()
-    bboxes = get_bboxes('/home/atestee/subt_ws/src/subt/subt_ros/labels/000001.txt')
+    bboxes = get_bboxes('/home/atestee/subt_ws/src/subt/subt_ros/labels/label.txt')
     for bbox in bboxes:
         marker = Marker()
         marker.header.frame_id = '/X1/laser/laser'
