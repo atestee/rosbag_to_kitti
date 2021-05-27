@@ -1,6 +1,5 @@
 import numpy as np
 import os
-
 from matplotlib import pyplot as plt
 
 
@@ -12,6 +11,7 @@ def get_scores(dir):
         label = f.read().split(' ')
         scores.append(float(label[-1]))
     return np.array(scores)
+
 
 def get_gt_classes(dir):
     gt_classes = []
@@ -85,11 +85,9 @@ def get_roc(scores, groundtruth, p, n):
     return [R_x, R_y], AUC
 
 
-
-
 if __name__ == '__main__':
-    scores = get_scores('/media/atestee/Verbatim/rosdata/test/data')
-    (gt_classes, p, n) = get_gt_classes('/media/atestee/Verbatim/rosdata/test/label_2')
+    scores = get_scores('/media/atestee/Verbatim/rosdata/train/data')
+    (gt_classes, p, n) = get_gt_classes('/media/atestee/Verbatim/rosdata/train/label_2')
     normalize_scores(scores)
     ROC, AUC = get_roc(scores, gt_classes, p, n)
 
@@ -98,8 +96,11 @@ if __name__ == '__main__':
     plt.figure(1)
     plt.plot(ROC[0], ROC[1])
     plt.plot([0, 1], [0, 1])
+    plt.xlabel('FP rate')
+    plt.ylabel('TP rate')
+    plt.title("ROC curve - training data")
 
-    plt.savefig('ROC-test.png')
+    plt.savefig('ROC-train.png')
     plt.show()
 
 
