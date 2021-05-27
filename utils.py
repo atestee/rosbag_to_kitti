@@ -152,7 +152,7 @@ def artifacts_in_pointcloud(pts, transforms):
             try:
                 dimensions = DIM.get(artifact_class)
                 bbox = (artifact_class, alpha, dimensions[0], dimensions[1], dimensions[2],
-                        x + dimensions[3], y + dimensions[4], z + dimensions[5])
+                        z + dimensions[3], x + dimensions[4], -(y - dimensions[5]))
                 bboxes.append(bbox)
             except KeyError:
                 print("Artifact class unknown!")
