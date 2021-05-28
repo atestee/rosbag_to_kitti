@@ -163,7 +163,9 @@ if __name__ == '__main__':
     #  |- calib
 
     assert(len(sys.argv) == 3)
-    main(sys.argv[1], sys.argv[2])
+    input_dir = sys.argv[1]
+    output_dir = sys.argv[2]
+    main(input_dir, output_dir)
 
     log_file.close()
 

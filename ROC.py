@@ -1,6 +1,12 @@
 import numpy as np
 import os
+import sys
 from matplotlib import pyplot as plt
+
+
+# ROC curve generator
+# code implemented based on this article:
+# https://www.sciencedirect.com/science/article/pii/S016786550500303X
 
 
 def get_scores(dir):
@@ -86,8 +92,13 @@ def get_roc(scores, groundtruth, p, n):
 
 
 if __name__ == '__main__':
-    scores = get_scores('/media/atestee/Verbatim/rosdata/train/data')
-    (gt_classes, p, n) = get_gt_classes('/media/atestee/Verbatim/rosdata/train/label_2')
+    assert (len(sys.argv) == 3)
+    scores_dir = sys.argv[1]
+    label_dir = sys.argv[2]
+
+    scores = get_scores(scores_dir)
+    (gt_classes, p, n) = get_gt_classes(label_dir)
+
     normalize_scores(scores)
     ROC, AUC = get_roc(scores, gt_classes, p, n)
 
@@ -98,9 +109,8 @@ if __name__ == '__main__':
     plt.plot([0, 1], [0, 1])
     plt.xlabel('FP rate')
     plt.ylabel('TP rate')
-    plt.title("ROC curve - training data")
 
-    plt.savefig('ROC-train.png')
+    plt.savefig('ROC-test.png')
     plt.show()
 
 
